@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сайт колледжа</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f5;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .hidden {
+            display: none;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .switch {
+            color: blue;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 10px;
+        }
+        #logout-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #pets-list {
+            margin-top: 20px;
+            text-align: left;
+        }
+        #pet-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWFhKhIhfJQq3Af9bRjEUh0eAYZVrMifA",
+            authDomain: "maksatclicker.firebaseapp.com",
+            projectId: "maksatclicker",
+            storageBucket: "maksatclicker.appspot.com",
+            messagingSenderId: "824612899714",
+            appId: "1:824612899714:web:b9dbe7b7e5e97cfb9b1d9b",
+            measurementId: "G-GBR4F6S861"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
+        const db = getFirestore(app);
+        
+        document.addEventListener("DOMContentLoaded", () => {
+            auth.signOut();
+            const loginForm = document.getElementById("login-form");
+            const registerForm = document.getElementById("register-form");
+            const gameBlock = document.getElementById("game-block");
+            const logoutBtn = document.getElementById("logout-btn");
+            const switchToLogin = document.getElementById("switch-to-login");
+            const switchToRegister = document.getElementById("switch-to-register");
+            const petCounter = document.getElementById("pet-counter");
+            const saveBtn = document.getElementById("save-btn");
+            const loadBtn = document.getElementById("load-btn");
+
+            let petCount = 0;
+
+            switchToLogin.addEventListener("click", () => {
+                registerForm.classList.add("hidden");
+                loginForm.classList.remove("hidden");
+            });
+
+            switchToRegister.addEventListener("click", () => {
+                loginForm.classList.add("hidden");
+                registerForm.classList.remove("hidden");
+            });
+
+            onAuthStateChanged(auth, async user => {
+                if (user) {
+                    loginForm.classList.add("hidden");
+                    registerForm.classList.add("hidden");
+                    gameBlock.classList.remove("hidden");
+                    logoutBtn.classList.remove("hidden");
+
+                    const userDoc = doc(db, "users", user.uid);
+                    const userSnap = await getDoc(userDoc);
+
+                    if (userSnap.exists()) {
+                        petCount = userSnap.data().petCount || 0;
+                        petCounter.textContent = `Питомцы: ${petCount}`;
+                    } else {
+                        await setDoc(userDoc, { petCount: 0 });
+                        petCounter.textContent = "Питомцы: 0";
+                    }
+                } else {
+                    loginForm.classList.remove("hidden");
+                    registerForm.classList.add("hidden");
+                    gameBlock.classList.add("hidden");
+                    logoutBtn.classList.add("hidden");
+                }
+            });
+
+            document.getElementById("register-btn").addEventListener("click", async () => {
+                const email = document.getElementById("register-email").value;
+                const password = document.getElementById("register-password").value;
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    const userDoc = doc(db, "users", user.uid);
+                    await setDoc(userDoc, { petCount: 0 });
+                    alert("Регистрация успешна!");
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
+
+            document.getElementById("login-btn").addEventListener("click", async () => {
+                const email = document.getElementById("login-email").value;
+                const password = document.getElementById("login-password").value;
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    alert("Вход успешен!");
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
+
+            logoutBtn.addEventListener("click", () => {
+                signOut(auth).then(() => alert("Вы вышли!"));
+            });
+
+            saveBtn.addEventListener("click", async () => {
+                const user = auth.currentUser;
+                if (user) {
+                    const userDoc = doc(db, "users", user.uid);
+                    await updateDoc(userDoc, { petCount });
+                    alert("Количество питомцев сохранено!");
+                }
+            });
+
+            loadBtn.addEventListener("click", async () => {
+                const user = auth.currentUser;
+                if (user) {
+                    const userDoc = doc(db, "users", user.uid);
+                    const userSnap = await getDoc(userDoc);
+                    if (userSnap.exists()) {
+                        petCount = userSnap.data().petCount || 0;
+                        petCounter.textContent = `Питомцы: ${petCount}`;
+                        alert("Количество питомцев загружено!");
+                    } else {
+                        alert("Документ пользователя не найден!");
+                    }
+                }
+            });
+
+            // Симулятор питомцев
+            const pets = {
+                common: ["Обычный 1", "Обычный 2", "Обычный 3", "Обычный 4", "Обычный 5", "Обычный 6", "Обычный 7", "Обычный 8", "Обычный 9", "Обычный 10", "Обычный 11", "Обычный 12", "Обычный 13", "Обычный 14", "Обычный 15", "Обычный 16", "Обычный 17", "Обычный 18", "Обычный 19", "Обычный 20"],
+                rare: ["Редкий 1", "Редкий 2", "Редкий 3", "Редкий 4", "Редкий 5", "Редкий 6", "Редкий 7", "Редкий 8", "Редкий 9", "Редкий 10"],
+                epic: ["Эпический 1", "Эпический 2", "Эпический 3", "Эпический 4", "Эпический 5", "Эпический 6", "Эпический 7", "Эпический 8", "Эпический 9", "Эпический 10"],
+                mythical: ["Мифический 1", "Мифический 2", "Мифический 3", "Мифический 4", "Мифический 5", "Мифический 6", "Мифический 7", "Мифический 8", "Мифический 9", "Мифический 10"],
+                legendary: ["Легендарный 1", "Легендарный 2", "Легендарный 3", "Легендарный 4", "Легендарный 5", "Легендарный 6", "Легендарный 7", "Легендарный 8", "Легендарный 9", "Легендарный 10"],
+                secret: ["Секретный 1", "Секретный 2", "Секретный 3", "Секретный 4", "Секретный 5", "Секретный 6", "Секретный 7", "Секретный 8", "Секретный 9", "Секретный 10"]
+            };
+
+            const probabilities = [
+                { type: 'common', probability: 50 },
+                { type: 'rare', probability: 20 },
+                { type: 'epic', probability: 20 },
+                { type: 'mythical', probability: 7 },
+                { type: 'legendary', probability: 2.5 },
+                { type: 'secret', probability: 0.5 }
+            ];
+
+            function getRandomPet() {
+                const random = Math.random() * 100;
+                let cumulativeProbability = 0;
+
+                for (const { type, probability } of probabilities) {
+                    cumulativeProbability += probability;
+                    if (random < cumulativeProbability) {
+                        const petList = pets[type];
+                        const randomPet = petList[Math.floor(Math.random() * petList.length)];
+                        return randomPet;
+                    }
+                }
+            }
+
+            document.getElementById("open-egg-btn").addEventListener("click", async () => {
+                const pet = getRandomPet();
+                const petsList = document.getElementById("pets-list");
+                const petItem = document.createElement("div");
+                petItem.textContent = `Вы получили: ${pet}`;
+                petsList.appendChild(petItem);
+
+                petCount++;
+                petCounter.textContent = `Питомцы: ${petCount}`;
+
+                const user = auth.currentUser;
+                if (user) {
+                    const userDoc = doc(db, "users", user.uid);
+                    await updateDoc(userDoc, { petCount });
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container" id="register-form">
+        <h2>Регистрация</h2>
+        <input type="email" id="register-email" placeholder="Email"><br>
+        <input type="password" id="register-password" placeholder="Пароль"><br>
+        <button id="register-btn">Зарегистрироваться</button>
+        <p class="switch" id="switch-to-login">Уже есть аккаунт? Войти</p>
+    </div>
+    
+    <div class="container hidden" id="login-form">
+        <h2>Вход</h2>
+        <input type="email" id="login-email" placeholder="Email"><br>
+        <input type="password" id="login-password" placeholder="Пароль"><br>
+        <button id="login-btn">Войти</button>
+        <p class="switch" id="switch-to-register">Нет аккаунта? Зарегистрироваться</p>
+    </div>
+    
+    <div class="container hidden" id="game-block">
+        <h2>Мини-игра появится здесь</h2>
+        <button id="open-egg-btn">Открыть яйцо</button>
+        <button id="save-btn">Сохранить</button>
+        <button id="load-btn">Загрузить</button>
+        <div id="pets-list"></div>
+    </div>
+    
+    <button id="logout-btn" class="hidden">Выйти</button>
+    <div id="pet-counter">Питомцы: 0</div>
+</body>
+</html>
