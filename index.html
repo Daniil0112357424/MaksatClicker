@@ -87,6 +87,22 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth();
         const db = getFirestore(app);
+
+        export { db };
+        import { db } from "./firebase-config";
+        import { collection, addDoc } from "firebase/firestore";
+
+        // Функция для добавления питомца
+        async function savePet(userId, pet) {
+         try {
+            await addDoc(collection(db, "users", userId, "pets"), pet);
+            console.log("Питомец добавлен:", pet);
+        } catch (error) {
+            console.error("Ошибка при добавлении питомца:", error);
+        }
+        }
+
+        export { savePet };
         
         document.addEventListener("DOMContentLoaded", async () => {
             await signOut(auth); // Разлогиниваем пользователя при загрузке страницы
@@ -209,7 +225,55 @@
                     await updateDoc(userRef, { petCount });
                 }
             });
+            
         });
+        import { savePet } from "./petService";
+        import { getAuth } from "firebase/auth";
+
+        function openEgg() {
+        const pets = [
+            { name: "Cat", rarity: "Common" },
+            { name: "Dog", rarity: "Rare" },
+            { name: "Dragon", rarity: "Legendary" }
+        ];
+
+        const randomIndex = Math.floor(Math.random() * pets.length);
+        const pet = pets[randomIndex];
+
+        console.log("Вы получили питомца:", pet.name);
+
+        const user = auth.currentUser;
+        if (user) {
+         savePet(user.uid, pet);
+        } else {
+            console.error("Пользователь не авторизован!");
+        }
+        }
+
+        document.getElementById("openEggBtn").addEventListener("click", openEgg);
+        import { collection, getDocs } from "firebase/firestore";
+
+        async function getUserPets(userId) {
+         const petsRef = collection(db, "users", userId, "pets");
+         const petDocs = await getDocs(petsRef);
+        return petDocs.docs.map(doc => doc.data());
+        }
+
+        export { getUserPets };
+        import { getUserPets } from "./petService";
+        import { getAuth } from "firebase/auth";
+
+        async function showPets() {
+        const user = auth.currentUser;
+        if (user) {
+            const pets = await getUserPets(user.uid);
+            console.log("Ваши питомцы:", pets);
+        } else {
+            console.error("Пользователь не авторизован!");
+  }
+}
+
+        document.getElementById("showPetsBtn").addEventListener("click", showPets);
     </script>
 </head>
 <body>
@@ -230,7 +294,7 @@
     </div>
     
     <div class="container hidden" id="game-block">
-        <h2>Мини-игра появится здесь</h2>
+        <h2>Скорей тапай Максата!</h2>
         <button id="open-egg-btn">Открыть яйцо</button>
         <div id="pets-list"></div>
     </div>
