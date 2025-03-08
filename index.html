@@ -76,9 +76,9 @@
         
         const firebaseConfig = {
             apiKey: "AIzaSyDWFhKhIhfJQq3Af9bRjEUh0eAYZVrMifA",
-            authDomain: "maksatclicker.firebaseapp.com",
-            projectId: "maksatclicker",
-            storageBucket: "maksatclicker.appspot.com",
+            authDomain: "maksатclicker.firebaseapp.com",
+            projectId: "maksатclicker",
+            storageBucket: "maksатclicker.appspot.com",
             messagingSenderId: "824612899714",
             appId: "1:824612899714:web:b9dbe7b7e5e97cfb9b1d9b",
             measurementId: "G-GBR4F6S861"
@@ -88,8 +88,9 @@
         const auth = getAuth();
         const db = getFirestore(app);
         
-        document.addEventListener("DOMContentLoaded", () => {
-            auth.signOut();
+        document.addEventListener("DOMContentLoaded", async () => {
+            await signOut(auth); // Разлогиниваем пользователя при загрузке страницы
+
             const loginForm = document.getElementById("login-form");
             const registerForm = document.getElementById("register-form");
             const gameBlock = document.getElementById("game-block");
@@ -97,10 +98,8 @@
             const switchToLogin = document.getElementById("switch-to-login");
             const switchToRegister = document.getElementById("switch-to-register");
             const petCounter = document.getElementById("pet-counter");
-            const saveBtn = document.getElementById("save-btn");
-            const loadBtn = document.getElementById("load-btn");
-
             let petCount = 0;
+            let userRef = null;
 
             switchToLogin.addEventListener("click", () => {
                 registerForm.classList.add("hidden");
@@ -119,15 +118,15 @@
                     gameBlock.classList.remove("hidden");
                     logoutBtn.classList.remove("hidden");
 
-                    const userDoc = doc(db, "users", user.uid);
-                    const userSnap = await getDoc(userDoc);
+                    userRef = doc(db, "users", user.uid);
 
-                    if (userSnap.exists()) {
-                        petCount = userSnap.data().petCount || 0;
+                    // Загружаем данные питомцев
+                    const userDoc = await getDoc(userRef);
+                    if (userDoc.exists()) {
+                        petCount = userDoc.data().petCount || 0;
                         petCounter.textContent = `Питомцы: ${petCount}`;
                     } else {
-                        await setDoc(userDoc, { petCount: 0 });
-                        petCounter.textContent = "Питомцы: 0";
+                        await setDoc(userRef, { petCount: 0 });
                     }
                 } else {
                     loginForm.classList.remove("hidden");
@@ -142,9 +141,6 @@
                 const password = document.getElementById("register-password").value;
                 try {
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    const user = userCredential.user;
-                    const userDoc = doc(db, "users", user.uid);
-                    await setDoc(userDoc, { petCount: 0 });
                     alert("Регистрация успешна!");
                 } catch (error) {
                     alert(error.message);
@@ -164,30 +160,6 @@
 
             logoutBtn.addEventListener("click", () => {
                 signOut(auth).then(() => alert("Вы вышли!"));
-            });
-
-            saveBtn.addEventListener("click", async () => {
-                const user = auth.currentUser;
-                if (user) {
-                    const userDoc = doc(db, "users", user.uid);
-                    await updateDoc(userDoc, { petCount });
-                    alert("Количество питомцев сохранено!");
-                }
-            });
-
-            loadBtn.addEventListener("click", async () => {
-                const user = auth.currentUser;
-                if (user) {
-                    const userDoc = doc(db, "users", user.uid);
-                    const userSnap = await getDoc(userDoc);
-                    if (userSnap.exists()) {
-                        petCount = userSnap.data().petCount || 0;
-                        petCounter.textContent = `Питомцы: ${petCount}`;
-                        alert("Количество питомцев загружено!");
-                    } else {
-                        alert("Документ пользователя не найден!");
-                    }
-                }
             });
 
             // Симулятор питомцев
@@ -233,10 +205,8 @@
                 petCount++;
                 petCounter.textContent = `Питомцы: ${petCount}`;
 
-                const user = auth.currentUser;
-                if (user) {
-                    const userDoc = doc(db, "users", user.uid);
-                    await updateDoc(userDoc, { petCount });
+                if (userRef) {
+                    await updateDoc(userRef, { petCount });
                 }
             });
         });
@@ -262,8 +232,6 @@
     <div class="container hidden" id="game-block">
         <h2>Мини-игра появится здесь</h2>
         <button id="open-egg-btn">Открыть яйцо</button>
-        <button id="save-btn">Сохранить</button>
-        <button id="load-btn">Загрузить</button>
         <div id="pets-list"></div>
     </div>
     
