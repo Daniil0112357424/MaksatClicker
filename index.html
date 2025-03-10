@@ -73,7 +73,7 @@
         .epic { color: purple; }
         .mythical { color: red; }
         .legendary { color: gold; }
-        .secret { background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet); -webkit-background-clip: text; color: transparent; }
+        .secret { background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet); -webkit-background-clip: text; background-clip: text; color: transparent; }
         h1 {
             color: #fff;
             font-size: 24px;
@@ -137,11 +137,13 @@
         <div id="pet-counter">Макстаты: 0</div>
         <div id="pets-list"></div>
         <button id="logout-btn">Выйти</button>
+        <h2>Топ игроков</h2>
+        <div id="top-players"></div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         // Firebase конфигурация (замени на свои данные)
@@ -162,6 +164,11 @@
         const provider = new GoogleAuthProvider();
 
         document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                await signOut(auth); // Разлогиниваем пользователя при загрузке страницы
+            } catch (error) {
+                console.error("Ошибка разлогина:", error);
+            }
 
             const registerForm = document.getElementById("register-form");
             const loginForm = document.getElementById("login-form");
@@ -176,6 +183,7 @@
             const cooldownTimer = document.getElementById("cooldown-timer");
             const googleLoginBtn = document.getElementById("google-login-btn");
             const googleRegisterBtn = document.getElementById("google-register-btn");
+            const topPlayers = document.getElementById("top-players");
 
             let petCount = 0;
             let petHistory = [];
@@ -223,6 +231,7 @@
                     loginForm.classList.add("hidden");
                     mainTitle.textContent = "Скорее выбей Максата!";
                     checkCooldown();
+                    displayTopPlayers();
                 } catch (error) {
                     alert(error.message);
                     console.error("Ошибка входа:", error);
@@ -238,7 +247,7 @@
 
                     if (!userDocSnap.exists()) {
                         await setDoc(userDocRef, {
-                            username: user.displayName,
+                            username: user.displayName, // Сохраняем имя пользователя из Google аккаунта
                             petCount: 0,
                             petHistory: [],
                             cooldownEndTime: null
@@ -249,6 +258,7 @@
                     loginForm.classList.add("hidden");
                     mainTitle.textContent = "Скорее выбей Максата!";
                     checkCooldown(userDocRef);
+                    displayTopPlayers();
                 } catch (error) {
                     alert(error.message);
                     console.error("Ошибка входа через Google:", error);
@@ -257,29 +267,30 @@
 
             googleRegisterBtn.addEventListener("click", async () => {
                 try {
-                    const result = await signInWithPopup(auth, provider);
-                    const user = result.user;
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDocSnap = await getDoc(userDocRef);
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
 
-                    if (!userDocSnap.exists()) {
-                        await setDoc(userDocRef, {
-                            username: user.displayName,
-                            petCount: 0,
-                            petHistory: [],
-                            cooldownEndTime: null
-                        });
-                    }
-
-                    mainContent.classList.remove("hidden");
-                    registerForm.classList.add("hidden");
-                    mainTitle.textContent = "Скорее выбей Максата!";
-                    checkCooldown(userDocRef);
-                } catch (error) {
-                    alert(error.message);
-                    console.error("Ошибка регистрации через Google:", error);
+                if (!userDocSnap.exists()) {
+                    await setDoc(userDocRef, {
+                        username: user.displayName, // Сохраняем имя пользователя из Google аккаунта
+                        petCount: 0,
+                        petHistory: [],
+                        cooldownEndTime: null
+                    });
                 }
-            });
+
+                mainContent.classList.remove("hidden");
+                registerForm.classList.add("hidden");
+                mainTitle.textContent = "Скорее выбей Максата!";
+                checkCooldown(userDocRef);
+                displayTopPlayers();
+            } catch (error) {
+                alert(error.message);
+                console.error("Ошибка регистрации через Google:", error);
+            }
+        });
 
             logoutBtn.addEventListener("click", async () => {
                 try {
@@ -335,6 +346,7 @@
                     });
 
                     checkCooldown(userDocRef);
+                    displayTopPlayers();
                 } else {
                     registerForm.classList.remove("hidden");
                     loginForm.classList.add("hidden");
@@ -378,6 +390,19 @@
                     updateCooldownTimer(endTime);
                 }
             }
+
+            async function displayTopPlayers() {
+                const topPlayersQuery = query(collection(db, "users"), orderBy("petCount", "desc"), limit(10));
+                const querySnapshot = await getDocs(topPlayersQuery);
+                topPlayers.innerHTML = "";
+                querySnapshot.forEach((doc) => {
+                    const player = doc.data();
+                    const playerName = player.username || "Без имени"; // Используем "Без имени" если username не определен
+                    const playerItem = document.createElement("div");
+                    playerItem.textContent = `${playerName}: ${player.petCount} питомцев`;
+                    topPlayers.appendChild(playerItem);
+                });
+        }
 
             const pets = {
                 common: ["Обычный 1", "Обычный 2", "Обычный 3", "Обычный 4", "Обычный 5"],
