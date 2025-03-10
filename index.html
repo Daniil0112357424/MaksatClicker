@@ -84,6 +84,30 @@
             font-size: 20px;
             margin-bottom: 20px;
         }
+
+        /* Медиазапросы для мобильной адаптации */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                width: 100%;
+                padding: 15px;
+            }
+            input, button {
+                width: 100%;
+                font-size: 14px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            h2 {
+                font-size: 18px;
+            }
+            #pet-counter {
+                font-size: 18px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -94,6 +118,7 @@
         <input type="text" id="register-username" placeholder="Логин"><br>
         <input type="password" id="register-password" placeholder="Пароль"><br>
         <button id="register-btn">Зарегистрироваться</button>
+        <button id="google-register-btn">Зарегистрироваться через Google</button>
         <p class="switch" id="switch-to-login">Уже есть аккаунт? Войти</p>
     </div>
 
@@ -103,7 +128,7 @@
         <input type="password" id="login-password" placeholder="Пароль"><br>
         <button id="login-btn">Войти</button>
         <button id="google-login-btn">Войти через Google</button>
-        <p class="switch" id="switch-to-register">Нет аккаунта? Зарегистрироваться</p>
+        <p class="switch" id="switch-to-register">Нет аккаунта? Зарегистрироваться</п>
     </div>
 
     <div class="container hidden" id="main-content">
@@ -155,6 +180,7 @@
             const openEggBtn = document.getElementById("open-egg-btn");
             const cooldownTimer = document.getElementById("cooldown-timer");
             const googleLoginBtn = document.getElementById("google-login-btn");
+            const googleRegisterBtn = document.getElementById("google-register-btn");
 
             let petCount = 0;
             let petHistory = [];
@@ -231,6 +257,32 @@
                 } catch (error) {
                     alert(error.message);
                     console.error("Ошибка входа через Google:", error);
+                }
+            });
+
+            googleRegisterBtn.addEventListener("click", async () => {
+                try {
+                    const result = await signInWithPopup(auth, provider);
+                    const user = result.user;
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+
+                    if (!userDocSnap.exists()) {
+                        await setDoc(userDocRef, {
+                            username: user.displayName,
+                            petCount: 0,
+                            petHistory: [],
+                            cooldownEndTime: null
+                        });
+                    }
+
+                    mainContent.classList.remove("hidden");
+                    registerForm.classList.add("hidden");
+                    mainTitle.textContent = "Скорее выбей Максата!";
+                    checkCooldown(userDocRef);
+                } catch (error) {
+                    alert(error.message);
+                    console.error("Ошибка регистрации через Google:", error);
                 }
             });
 
