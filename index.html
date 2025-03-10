@@ -162,11 +162,6 @@
         const provider = new GoogleAuthProvider();
 
         document.addEventListener("DOMContentLoaded", async () => {
-            try {
-                await signOut(auth); // Разлогиниваем пользователя при загрузке страницы
-            } catch (error) {
-                console.error("Ошибка разлогина:", error);
-            }
 
             const registerForm = document.getElementById("register-form");
             const loginForm = document.getElementById("login-form");
